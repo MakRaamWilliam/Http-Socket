@@ -7,13 +7,14 @@
 
 #include <stdlib.h>
 #include <unistd.h>
+#include "ctime"
 #include <bits/stdc++.h>
 
 #pragma comment(lib, "Ws_.lib")
 
 #define  MAXPENDING 10
-#define  MAXDATABUF 500000
-
+#define  MAXDATABUF 50000
+#define  TIMEOUT  1000
 using namespace std;
 
 string Handle_Request(string request);
@@ -24,7 +25,7 @@ void* HandleTCPClient(void* params);
 struct structSock{
     int socket;
 };
-
+int clinetnum;
 vector<string> splitwithdel(string command, char del){
 
     stringstream commandstr(command);
@@ -71,7 +72,7 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t size)
 int main(int argc, char const *argv[])
 {
 
-    int servPort = 8081;
+    int servPort = 5000;
     if(argc >= 2)
         servPort = atoi(argv[1]);
 
@@ -99,36 +100,31 @@ int main(int argc, char const *argv[])
     servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servAddr.sin_port = htons(servPort );
 
-//    memset(servAddr.sin_zero, '\0', sizeof servAddr.sin_zero);
-
-    if (bind(servSock, (struct sockaddr*) &servAddr, sizeof(servAddr)) < 0)
-    {
-        perror("In bind");
+    if (bind(servSock, (struct sockaddr*) &servAddr, sizeof(servAddr)) < 0){
+        perror("Error in  bind");
         exit(EXIT_FAILURE);
     }
 
     // Listen to the clients requests
-    if (listen(servSock, MAXPENDING) < 0)
-    {
-        perror("In listen");
+    if (listen(servSock, MAXPENDING) < 0){
+        perror("Error in listen");
         exit(EXIT_FAILURE);
     }
 
     while(1)
     {
-        printf("\n ---- Waiting for new connection ---- \n\n");
+        printf("\n    Waiting for new connection     \n\n");
         struct sockaddr_in clntAddr;
         socklen_t clntAddrLen = sizeof(clntAddr);
         int clntSock = accept(servSock, (struct sockaddr *) &clntAddr, &clntAddrLen);
-        if (clntSock < 0)
-        {
-            perror("In accept");
+        if (clntSock < 0){
+            perror("Error in accept");
             exit(EXIT_FAILURE);
         }
         char clntName[INET_ADDRSTRLEN];
         if (inet_ntop(AF_INET, &clntAddr.sin_addr.s_addr, clntName,sizeof(clntName)) != NULL)
             printf("Handling client %s/%d\n", clntName, ntohs(clntAddr.sin_port));
-
+        clinetnum++;
         structSock *paramSock = new structSock();
         pthread_t pthread;
         paramSock->socket = clntSock;
@@ -141,25 +137,27 @@ void* HandleTCPClient(void* params){
     struct structSock *p = (structSock *) params;
     int clntSock = p->socket;
     char data [MAXDATABUF] ;
+    unsigned long nwtimeout = 5 * 1000 / clinetnum;
+    unsigned long strtime = std::clock();
     while(true){
+        if((std::clock() - strtime) > nwtimeout)
+            break;
         ZeroMemory(data, MAXDATABUF);
         long recBytes = recv(clntSock , data, MAXDATABUF, 0);
-        if (recBytes <= 0) {
+        if (recBytes <= 0  ) {
             cout<<"Client disconnected\n";
             break;
         }
         string datastr = string(data,recBytes);
-//        cout<<"data\n";
-//        cout<<datastr<<"\n";
-        cout << "===== Received Request "<<recBytes << "======\n";
+        cout << ">>>>>>>>>>>>> Received Request "<<recBytes << " Bytes\n";
         cout << string (data,recBytes) << "\n";
         string response = Handle_Request(datastr);
 
-        send(clntSock, response.c_str(), response.size() + 1, 0);
-        cout << "===== Sent Response =====\n" << response << "\n";
+        long sendBytes = send(clntSock, response.c_str(), response.size() + 1, 0);
+        cout << ">>>>>>>>>>>>> Sent Response "<<sendBytes<<" Bytes\n" << response << "\n";
         close(clntSock);
     }
-    cout << "===========Close Connection===========\n";
+    cout << "--------Close Connection \n";
     close(clntSock);
 }
 
