@@ -1,0 +1,3 @@
+from index file
+where in client
+in posts
