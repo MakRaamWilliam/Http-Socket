@@ -37,8 +37,9 @@ vector<string> splitwithdel(string command, char del){
     return lines;
 }
 
-string getdata(string command, string del){
+string getdata(string command){
     size_t pos = 0;
+    string del="\r\n\r\n";
     while ((pos = command.find(del)) != std::string::npos) {
         command.erase(0, pos + del.length());
     }
@@ -105,7 +106,6 @@ int main(int argc, char const *argv[])
         exit(EXIT_FAILURE);
     }
 
-    // Listen to the clients requests
     if (listen(servSock, MAXPENDING) < 0){
         perror("Error in listen");
         exit(EXIT_FAILURE);
@@ -113,7 +113,7 @@ int main(int argc, char const *argv[])
 
     while(1)
     {
-        printf("\n    Waiting for new connection     \n\n");
+        printf("\n    Waiting for new connection on port %d \n\n",servPort);
         struct sockaddr_in clntAddr;
         socklen_t clntAddrLen = sizeof(clntAddr);
         int clntSock = accept(servSock, (struct sockaddr *) &clntAddr, &clntAddrLen);
@@ -215,7 +215,7 @@ string Handle_POST(string request, string file_path){
     string mypath = "C:\\Users\\makrm\\CLionProjects\\server\\posts\\";
     file_path = mypath + splitwithdel(file_path, '/').back();
     ofstream file(file_path, std::ios::binary);
-    string  data = getdata(request, "\r\n\r\n");
+    string  data = getdata(request);
     file<< data.substr(0,data.size()-1);
     file.close();
     return "HTTP/1.1 200 OK\r\n";
